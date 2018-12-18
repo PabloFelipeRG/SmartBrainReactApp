@@ -100,13 +100,15 @@ class App extends Component {
   }
 
   loadUser = (user) => {
-    this.setState({user: {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      entries: user.entries,
-      joined: user.joined
-    }})
+    this.setState({
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        entries: user.entries,
+        joined: user.joined
+      }
+    })
   }
 
   calculateFaceLocation = (data) => {
@@ -123,20 +125,33 @@ class App extends Component {
   }
 
   displayFaceBox = (box) => {
-    this.setState({box: box});
+    this.setState({ box: box });
   }
 
   onInputChange = (event) => {
-    this.setState({input: event.target.value});
+    this.setState({ input: event.target.value });
   }
 
   onButtonSubmit = () => {
-    this.setState({imageUrl: this.state.input});
+    this.setState({ imageUrl: this.state.input });
 
     app.models.predict(
       Clarifai.FACE_DETECT_MODEL,
       this.state.input
     ).then(response => {
+      if (response) {
+        fetch('http://localhost:3000/image', {
+          method: 'put',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: this.state.user.id
+          })
+        })
+          .then(response => response.json())
+          .then(count => {
+            this.setState(Object.assign(this.state.user, { entries: count }))
+          })
+      }
       this.displayFaceBox(this.calculateFaceLocation(response));
     }).catch(err => {
       console.log("YOU GOT AN ERROR:", err);
@@ -145,11 +160,14 @@ class App extends Component {
 
   onRouteChange = (route) => {
     if (route === 'signin') {
-      this.setState({isSignedIn: false});
+      this.setState({ isSignedIn: false });
+    } else if (route === 'register') {
+      this.setState({ isSignedIn: false });
     } else if (route === 'home') {
-      this.setState({isSignedIn: true});
+      this.setState({ isSignedIn: true });
     }
-    this.setState({route: route});
+    this.setState({ route: route });
+    console.log("fwefwe")
   }
 
   render() {
@@ -160,29 +178,35 @@ class App extends Component {
           className='particles'
           params={particlesOptions}
         />
-        <Navigation 
+        <Navigation
           onRouteChange={this.onRouteChange}
           isSignedIn={isSignedIn}
+        />
+        {route === 'signin'
+          ? <Signin
+            loadUser={this.loadUser}
+            onRouteChange={this.onRouteChange}
           />
-        { route === 'signin' 
-          ? <Signin onRouteChange={this.onRouteChange}/>
           : route === 'register'
-          ? <Register 
+            ? <Register
               onRouteChange={this.onRouteChange}
               loadUser={this.loadUser}
             />
-          : <div>
-            <Logo />
-            <Rank />
-            <ImageLinkForm
-              onInputChange={this.onInputChange}
-              onButtonSubmit={this.onButtonSubmit}
-            />
-            <FaceRecognition
-              box={box}
-              imageUrl={imageUrl}
-            />
-          </div>
+            : <div>
+              <Logo />
+              <Rank
+                name={this.state.user.name}
+                entries={this.state.user.entries}
+              />
+              <ImageLinkForm
+                onInputChange={this.onInputChange}
+                onButtonSubmit={this.onButtonSubmit}
+              />
+              <FaceRecognition
+                box={box}
+                imageUrl={imageUrl}
+              />
+            </div>
         }
       </div>
     );
